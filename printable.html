@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Imprimir tatuaje - IrisSkin</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    :root { --bg-beige: #f5efe6; --text-color: #000000; --accent: #8b5e3c; --accent-dark:#6f4b31; }
+    body { background: var(--bg-beige); color: var(--text-color); }
+    .print-area { max-width: 760px; margin: 18px auto; text-align:center; padding:18px; }
+    .qr-large { width: 360px; height: 360px; margin: 0 auto; display:block; }
+    .print-header { display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:8px; }
+    .print-name { font-family: 'Cinzel', Georgia, serif; font-size:20px; margin:0; }
+    .qr-frame { padding:18px; border-radius:12px; background:white; display:inline-block; box-shadow:0 10px 24px rgba(0,0,0,0.06); }
+    .no-print .btn { margin-right:6px; }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white !important; color: black !important; }
+      .qr-large { width: auto; height: auto; max-width: 100%; }
+      .print-area { box-shadow: none; padding:0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-area">
+    <div style="display:flex; align-items:center; justify-content:center; gap:12px;">
+      <img src="img/6c2ca04f-5fb4-40a2-ad66-cc4a6f180b08-removebg-preview.png" alt="IrisSkin" style="height:56px; object-fit:contain;">
+      <h2 style="margin:0;">IrisSkin — Tatuaje QR</h2>
+    </div>
+    <p class="text-muted">Escanea para ver el perfil del deportista. Imprime a escala adecuada para aplicación como tatuaje temporal.</p>
+    <div id="qrHolder" class="my-3">
+      <div class="qr-frame" style="display:inline-block; padding:14px;">
+        <canvas id="qrCanvasLarge" class="qr-large"></canvas>
+      </div>
+    </div>
+    <div id="nameArea" class="mb-3"></div>
+    <div class="no-print">
+      <button id="doPrint" class="btn btn-primary">Imprimir</button>
+      <a id="openProfile" class="btn btn-outline-secondary" target="_blank">Abrir perfil</a>
+      <button id="downloadPdf" class="btn btn-success ms-2">Descargar PDF</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    function getQS() { return location.search || ''; }
+    function getParams() {
+      const params = new URLSearchParams(location.search);
+      const keys = ['nombre','apellido'];
+      const out = {};
+      keys.forEach(k => { if (params.has(k)) out[k] = params.get(k); });
+      return out;
+    }
+
+    const params = getQS();
+    const profileUrl = 'profile.html' + params;
+
+    const qrLarge = new QRious({ element: document.getElementById('qrCanvasLarge'), size: 600, value: profileUrl });
+
+    const nameData = getParams();
+    const nameArea = document.getElementById('nameArea');
+    if (nameData.nombre || nameData.apellido) {
+      const fullname = `${nameData.nombre || ''} ${nameData.apellido || ''}`.trim();
+      nameArea.innerHTML = `<strong>${fullname}</strong>`;
+    }
+
+    document.getElementById('doPrint').addEventListener('click', () => window.print());
+    const openProfile = document.getElementById('openProfile');
+    openProfile.href = profileUrl;
+
+    // Auto abrir diálogo de impresión después de generar QR
+    setTimeout(() => {
+      // don't auto-print in all cases; user can press Imprimir
+      // window.print();
+    }, 700);
+    // Titles are static for printability and legibility (animations removed)
+
+    // Descargar PDF del área imprimible (QR grande)
+    document.getElementById('downloadPdf').addEventListener('click', async function(){
+      try {
+        const area = document.querySelector('.print-area');
+        if (!area) return alert('Área no encontrada para generar PDF.');
+        const canvas = await html2canvas(area, {backgroundColor: '#ffffff', scale: 2});
+        const img = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+        const imgProps = pdf.getImageProperties(img);
+        const pdfWidth = pdf.internal.pageSize.getWidth() - 20;
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        pdf.addImage(img, 'PNG', 10, 10, pdfWidth, pdfHeight);
+        pdf.save('tatuaje-printable.pdf');
+      } catch (err) {
+        console.error(err);
+        alert('Error al generar PDF: ' + (err && err.message));
+      }
+    });
+  </script>
+</body>
+</html>

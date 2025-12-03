@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Perfil - Información</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg-beige: #f5efe6; --text-color: #000000; --accent: #8b5e3c; --accent-dark:#6f4b31; }
+    body { background-color: var(--bg-beige); color: var(--text-color); }
+    a, p, li, input, label { color: var(--text-color); }
+    h1,h2,h3,.card-title { font-family: 'Cinzel', Georgia, serif; color: var(--text-color); letter-spacing: 0.6px; }
+    /* Removed title animations for better readability */
+    /* Profile specific styling */
+    .profile-header { display:flex; gap:12px; align-items:center; }
+    .profile-qr-frame { padding:14px; border-radius:10px; background:#fff; box-shadow:0 8px 24px rgba(0,0,0,0.06); }
+    .info-list .list-group-item { border: none; padding-left: 0; padding-right:0; }
+    .highlight { background: linear-gradient(90deg, rgba(139,94,60,0.08), rgba(139,94,60,0.03)); border-radius:8px; padding:8px; }
+    .btn-primary { background-color: var(--accent) !important; border-color: var(--accent) !important; color: #fff !important; }
+    .btn-primary:hover { background-color: var(--accent-dark) !important; border-color: var(--accent-dark) !important; }
+    /* removed per-letter wave animation */
+    /* Embedded mode: minimal chrome for iframe/embed usage */
+    body.embedded { background: transparent; }
+    body.embedded .container { padding: 8px; }
+    body.embedded .card { box-shadow: none; border-radius: 6px; }
+    body.embedded .d-flex.align-items-center { display: none !important; }
+    body.embedded #qrWrapContainer .mt-2 { display: none !important; }
+    body.embedded footer { display: none !important; }
+    body.embedded .card-body { padding: 8px !important; }
+  </style>
+</head>
+<body class="bg-light">
+  <div class="container py-5">
+    <div class="row justify-content-center">
+      <div class="col-md-8">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <div class="d-flex align-items-center mb-3">
+              <img src="img/6c2ca04f-5fb4-40a2-ad66-cc4a6f180b08-removebg-preview.png" alt="IrisSkin" style="height:48px; object-fit:contain;" class="me-2">
+              <h3 class="card-title mb-0">IrisSkin — Perfil</h3>
+            </div>
+            <div id="profileContent" class="mt-3">
+              <div class="row">
+                <div class="col-md-4 d-flex flex-column align-items-center" id="qrWrapContainer">
+                  <!-- QR irá aquí -->
+                  <div class="mt-2">
+                                    <button id="printTattooBtn" class="btn btn-primary mb-2">Imprimir tatuaje</button>
+                                    <button id="downloadPdfBtn" class="btn btn-success mb-2 ms-2">Descargar PDF</button>
+                    <a href="index.html" class="btn btn-outline-secondary">Volver</a>
+                  </div>
+                </div>
+                <div class="col-md-8" id="infoArea">
+                  <!-- Contenido dinámico -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    function getParams() {
+      const params = new URLSearchParams(location.search);
+      const keys = ['nombre','apellido','email','telefono','tiposangre','direccion','contactoEmergencia'];
+      const out = {};
+      keys.forEach(k => { if (params.has(k)) out[k] = params.get(k); });
+      return out;
+    }
+
+    function renderInfo(data) {
+      const container = document.getElementById('infoArea');
+      if (Object.keys(data).length === 0) {
+        container.innerHTML = '<p class="text-muted">No hay datos. Vuelve al generador y crea un QR con la información.</p>';
+        return;
+      }
+      const lines = [];
+      if (data.nombre) lines.push(`<li class="list-group-item"><strong>Nombre:</strong> ${escapeHtml(data.nombre)}</li>`);
+      if (data.apellido) lines.push(`<li class="list-group-item"><strong>Apellido:</strong> ${escapeHtml(data.apellido)}</li>`);
+      if (data.email) lines.push(`<li class="list-group-item"><strong>Email:</strong> ${escapeHtml(data.email)}</li>`);
+      if (data.telefono) lines.push(`<li class="list-group-item"><strong>Teléfono:</strong> ${escapeHtml(data.telefono)}</li>`);
+      if (data.tiposangre) lines.push(`<li class="list-group-item"><strong>Tipo de sangre:</strong> ${escapeHtml(data.tiposangre)}</li>`);
+      if (data.direccion) lines.push(`<li class="list-group-item"><strong>Dirección:</strong> ${escapeHtml(data.direccion)}</li>`);
+      if (data.contactoEmergencia) lines.push(`<li class="list-group-item"><strong>Contacto emergencia:</strong> ${escapeHtml(data.contactoEmergencia)}</li>`);
+
+      container.innerHTML = `<ul class="list-group">${lines.join('\n')}</ul>`;
+    }
+
+    function escapeHtml(unsafe) {
+      return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    const data = getParams();
+    // If `embed=1` is present, render a minimal version for embedding
+    const params = new URLSearchParams(location.search);
+    const isEmbed = params.get('embed') === '1';
+
+    // Auto-detect when this page is opened directly from a QR on a phone
+    // If there is profile data and the page is top-level and the device is mobile,
+    // render the minimal/embedded visual state for clarity.
+    const hasData = Object.keys(data).length > 0;
+    const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent || '');
+    const isTop = window.top === window;
+    if (isEmbed || (hasData && isTop && isMobile)) {
+      document.body.classList.add('embedded');
+    }
+
+    renderInfo(data);
+
+    // Titles are static for better readability (animations removed)
+    // Generar QR que apunta a esta página (profile.html + query)
+    (function generateQR(){
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.id = 'profileQR';
+        canvas.width = 260; canvas.height = 260;
+        const wrap = document.getElementById('qrWrapContainer');
+        const frame = document.createElement('div'); frame.className = 'profile-qr-frame';
+        frame.appendChild(canvas);
+        // insert QR at top
+        wrap.insertBefore(frame, wrap.firstChild);
+        const params = location.search || '';
+        const profileUrl = 'profile.html' + params;
+        const qr = new QRious({ element: canvas, size: 260, value: profileUrl });
+      } catch (e) { console.error(e); }
+    })();
+
+    // If we're in embedded/minimal mode, slightly enlarge text for readability on phones
+    if (document.body.classList.contains('embedded')) {
+      const card = document.querySelector('.card-body');
+      if (card) card.style.padding = '12px';
+      const info = document.getElementById('infoArea');
+      if (info) info.style.fontSize = '1.05rem';
+      // add a small link to open the full profile page (with header) if user wants
+      const wrap = document.getElementById('qrWrapContainer');
+      const openFull = document.createElement('a');
+      openFull.href = window.location.href.replace('embed=1','');
+      openFull.textContent = 'Abrir versión completa';
+      openFull.className = 'btn btn-link';
+      openFull.style.display = 'block';
+      openFull.style.marginTop = '8px';
+      wrap.appendChild(openFull);
+    }
+
+    document.getElementById('printTattooBtn').addEventListener('click', function(){
+      const qs = location.search || '';
+      const url = 'printable.html' + qs;
+      window.open(url, '_blank');
+    });
+
+    // Descargar PDF del área del perfil (QR + datos)
+    document.getElementById('downloadPdfBtn').addEventListener('click', async function(){
+      try {
+        const card = document.querySelector('.card');
+        if (!card) return alert('No se encontró el área para generar PDF.');
+        const canvas = await html2canvas(card, {backgroundColor: '#ffffff', scale: 2});
+        const img = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+        const imgProps = pdf.getImageProperties(img);
+        const pdfWidth = pdf.internal.pageSize.getWidth() - 20; // margen
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        pdf.addImage(img, 'PNG', 10, 10, pdfWidth, pdfHeight);
+        pdf.save('tatuaje-profile.pdf');
+      } catch (err) {
+        console.error(err);
+        alert('Error al generar PDF: ' + (err && err.message));
+      }
+    });
+  </script>
+</body>
+</html>
